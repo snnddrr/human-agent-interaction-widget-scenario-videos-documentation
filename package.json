@@ -1,0 +1,8 @@
+{
+  "name": "agent-widget-scenarios",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vercel/functions": "^3.11.3"
+  }
+}
