@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenarios</title>
+<meta name="description" content="Scenario videos">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Scenarios">
+<meta property="og:description" content="Scenario videos">
+<meta property="og:image" content="/posters/scenario-01.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root { --bg: #f4f4f2; --fg: #111; --mute: #a3a3a0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 13px/1.5 ui-sans-serif, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: grid; grid-template-columns: 260px 1fr; height: 100vh;
+  }
+  nav { padding: 32px 28px; overflow-y: auto; }
+  nav ol { list-style: none; }
+  nav button {
+    all: unset; cursor: pointer; display: block; width: 100%;
+    padding: 3px 0; color: var(--mute); transition: color .15s;
+  }
+  nav button:hover, nav button[aria-current="true"] { color: var(--fg); }
+  nav button:focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
+  main { display: flex; align-items: center; justify-content: center; padding: 32px 32px 32px 0; min-width: 0; }
+  video { display: block; max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; background: transparent; }
+  @media (max-width: 720px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: 100vh; }
+    nav { padding: 20px 20px 8px; }
+    main { padding: 8px 20px 20px; align-items: flex-start; }
+    video { height: auto; }
+  }
+</style>
+</head>
+<body>
+<nav><ol id="list"></ol></nav>
+<main><video id="player" controls playsinline preload="metadata"></video></main>
+<script>
+  // Add a video: drop the .mp4 in /videos and a poster in /posters, then add a line here.
+  const VIDEOS = [
+    { id: "scenario-01", name: "Scenario 01 — Resting, high energy", src: "videos/scenario-01.mp4", poster: "posters/scenario-01.jpg" },
+  ];
+
+  const list = document.getElementById("list");
+  const player = document.getElementById("player");
+  const buttons = {};
+
+  function select(id, play) {
+    const v = VIDEOS.find(v => v.id === id) || VIDEOS[0];
+    for (const k in buttons) buttons[k].setAttribute("aria-current", k === v.id);
+    if (player.dataset.id !== v.id) {
+      player.dataset.id = v.id;
+      player.poster = v.poster || "";
+      player.src = v.src;
+    }
+    document.title = v.name + " · Scenarios";
+    if (play) { player.currentTime = 0; player.play().catch(() => {}); }
+  }
+
+  VIDEOS.forEach(v => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.textContent = v.name;
+    b.onclick = () => { history.replaceState(null, "", "#" + v.id); select(v.id, true); };
+    buttons[v.id] = b;
+    li.appendChild(b);
+    list.appendChild(li);
+  });
+
+  select(location.hash.slice(1), false);
+  window.addEventListener("hashchange", () => select(location.hash.slice(1), true));
+</script>
+</body>
+</html>
