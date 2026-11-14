@@ -120,6 +120,12 @@
     transition-delay: calc(var(--k) * 45ms + 70ms);
   }
 
+  /* Confidentiality notice */
+  .legal { margin-top: auto; padding-top: 40px; max-width: 34ch; font-size: 12px; line-height: 1.5; color: var(--mute); }
+  .legal p + p { margin-top: 8px; }
+  .legal strong { font-weight: 500; color: var(--head); }
+  .legal.end { display: none; }
+
   /* Active marker: a plain blue dot that glides to the chosen item. */
   .lamp {
     position: absolute; left: -24px; top: 0; width: 8px; height: 8px; margin-top: -4px;
@@ -181,6 +187,8 @@
     main { padding: 16px 16px 32px; grid-template-rows: auto auto; }
     .frame { aspect-ratio: 4 / 3; }
     .bar { grid-template-columns: 1fr; }
+    nav .legal { display: none; }
+    .legal.end { display: block; padding: 0 16px 40px; max-width: 46ch; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -200,11 +208,15 @@
     <button data-mode="date" aria-pressed="false">Date</button>
   </div>
   <ul class="menu" id="menu"><li class="lamp" id="lamp" aria-hidden="true"></li></ul>
+  <footer class="legal">
+    <p><strong>Confidential.</strong> Unpublished work in progress from Sander Randoja’s master’s degree project in Interaction Design at Umeå Institute of Design, Umeå University. Please don’t share, download, record or reproduce it without written permission.</p>
+    <p>© 2026 Sander Randoja. Protected under the Swedish Copyright Act (1960:729).</p>
+  </footer>
 </nav>
 
 <main>
   <div class="frame reveal" id="frame" style="--i:2">
-    <video id="player" playsinline preload="metadata"></video>
+    <video id="player" playsinline preload="metadata" controlslist="nodownload noremoteplayback" disablepictureinpicture></video>
     <span class="bigplay" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z" fill="currentColor"/></svg></span>
   </div>
   <div class="bar reveal" style="--i:3">
@@ -221,6 +233,10 @@
     </div>
   </div>
 </main>
+<footer class="legal end">
+    <p><strong>Confidential.</strong> Unpublished work in progress from Sander Randoja’s master’s degree project in Interaction Design at Umeå Institute of Design, Umeå University. Please don’t share, download, record or reproduce it without written permission.</p>
+    <p>© 2026 Sander Randoja. Protected under the Swedish Copyright Act (1960:729).</p>
+</footer>
 
 <script>
   // To add a video: put the .mp4 in /videos and a .jpg poster in /posters
@@ -375,6 +391,7 @@
   // Controls
   const toggle = () => player.paused ? player.play().catch(() => {}) : player.pause();
   frame.onclick = toggle;
+  frame.addEventListener("contextmenu", e => e.preventDefault());
   $("toggle").onclick = toggle;
   $("full").onclick = () => (frame.requestFullscreen || frame.webkitRequestFullscreen || (() => player.webkitEnterFullscreen && player.webkitEnterFullscreen())).call(frame);
   const PLAY = '<path d="M3 1.5v13l11-6.5z" fill="currentColor"/>';
