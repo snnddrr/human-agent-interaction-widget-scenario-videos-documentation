@@ -8,7 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Reactive agent video documentation">
 <meta property="og:description" content="Scenarios, work in progress and visualisations from a reactive agent prototype.">
-<meta property="og:image" content="https://agent-widget-scenarios.vercel.app/posters/2026-11-13_SC01_scenario-resting-high-energy.jpg">
+<meta property="og:image" content="https://agent-widget-scenarios.vercel.app/posters/2026-11-14_SC01_scenario-resting-high-energy.jpg">
 <meta property="og:url" content="https://agent-widget-scenarios.vercel.app/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/familjen-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -35,6 +35,7 @@
     --violet: #8b5cf6;
     --magenta: #d04ed6;
     --cyan: #63d8ea;
+    --blue: #2f6bff;
     --ease: cubic-bezier(.2, .8, .2, 1);
     --nav-w: clamp(264px, 24vw, 340px);
   }
@@ -93,27 +94,14 @@
   .group.lead .item { padding: 6px 0; }
   .group.lead .item .t { font-size: clamp(22px, 2vw, 27px); font-weight: 520; line-height: 1.1; letter-spacing: -0.018em; }
 
-  /* Active marker: a small breathing lamp that glides to the chosen item. */
+  /* Active marker: a plain blue dot that glides to the chosen item. */
   .lamp {
-    position: absolute; left: -26px; top: 0; width: 12px; height: 12px; margin-top: -6px;
-    pointer-events: none; opacity: 0;
+    position: absolute; left: -24px; top: 0; width: 8px; height: 8px; margin-top: -4px;
+    border-radius: 50%; background: var(--blue); pointer-events: none; opacity: 0;
     transform: translateY(var(--y, 0px));
     transition: transform .7s var(--ease), opacity .4s var(--ease);
   }
   .lamp.on { opacity: 1; }
-  .lamp::before, .lamp::after { content: ""; position: absolute; inset: 0; border-radius: 50%; }
-  .lamp::before {
-    background: radial-gradient(circle at 35% 35%, #fff 0 12%, var(--cyan) 30%, var(--violet) 62%, var(--magenta) 100%);
-    animation: breathe 4.2s ease-in-out infinite;
-  }
-  .lamp::after {
-    inset: -9px; z-index: -1;
-    background: radial-gradient(circle, rgba(139, 92, 246, .45), rgba(208, 78, 214, .18) 45%, transparent 70%);
-    filter: blur(4px);
-    animation: glow 4.2s ease-in-out infinite;
-  }
-  @keyframes breathe { 0%, 100% { transform: scale(.82); } 50% { transform: scale(1.08); } }
-  @keyframes glow { 0%, 100% { opacity: .45; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.15); } }
 
   /* ---------- Player ---------- */
   main {
@@ -214,7 +202,7 @@
   const CATEGORIES = ["Scenarios", "Co-work in progress", "AI visualisation"];
   const LEAD = "Scenarios";
   const VIDEOS = [
-    { id: "SC01", category: "Scenarios",           title: "Resting, high energy",   date: "2026-11-13", file: "2026-11-13_SC01_scenario-resting-high-energy" },
+    { id: "SC01", category: "Scenarios",           title: "Resting, high energy",   date: "2026-11-14", file: "2026-11-14_SC01_scenario-resting-high-energy" },
     { id: "CW01", category: "Co-work in progress", title: "Co-working session 01",  date: "2026-11-14", file: "2026-11-14_CW01_co-working-session-01" },
     { id: "CW02", category: "Co-work in progress", title: "Co-working session 02",  date: "2026-11-14", file: "2026-11-14_CW02_co-working-session-02" },
     { id: "AV01", category: "AI visualisation",    title: "Low alertness",          date: "2026-11-10", file: "2026-11-10_AV01_low-alertness" },
