@@ -95,6 +95,31 @@
   .item[aria-current="true"] .t { transform: none; }
 
 
+  /* Secondary categories fold away behind the dots. */
+  .more { margin-top: 28px; }
+  .dots {
+    display: grid; place-items: center; width: 32px; height: 22px; margin-left: -6px; border-radius: 6px;
+    color: var(--mute); transition: background .2s, color .2s;
+  }
+  .dots:hover { background: rgba(26, 26, 26, .06); color: var(--head); }
+  .dots svg { width: 16px; height: 4px; transition: transform .45s var(--ease); }
+  .more.open .dots svg { transform: rotate(90deg); }
+  .more.holds-current:not(.open) .dots { color: var(--blue); }
+  /* Closing is quick and quiet; opening eases out with a soft overshoot-free settle. */
+  .fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .34s cubic-bezier(.4, 0, .2, 1); }
+  .more.open .fold { grid-template-rows: 1fr; transition: grid-template-rows .6s cubic-bezier(.22, 1, .36, 1); }
+  .fold > ul { list-style: none; min-height: 0; overflow: hidden; }
+  .fold .group { margin-top: 0; padding-top: 24px; }
+  .fold [data-k] {
+    opacity: 0; transform: translateY(-6px); filter: blur(3px);
+    transition: opacity .16s ease-in, transform .22s ease-in, filter .16s ease-in;
+  }
+  .more.open .fold [data-k] {
+    opacity: 1; transform: none; filter: blur(0);
+    transition: opacity .42s var(--ease), transform .6s cubic-bezier(.22, 1, .36, 1), filter .42s var(--ease);
+    transition-delay: calc(var(--k) * 45ms + 70ms);
+  }
+
   /* Active marker: a plain blue dot that glides to the chosen item. */
   .lamp {
     position: absolute; left: -24px; top: 0; width: 8px; height: 8px; margin-top: -4px;
@@ -225,33 +250,68 @@
                      .filter(g => g.items.length);
   }
 
-  function render(mode, animateIn) {
-    menu.querySelectorAll(".group").forEach(n => n.remove());
-    buttons = {};
-    groupsFor(mode).forEach((g, gi) => {
-      const li = document.createElement("li");
-      li.className = "group" + (g.lead ? " lead" : "") + (animateIn ? " reveal" : "");
-      li.style.setProperty("--i", gi + 2);
-      li.innerHTML = `<h2></h2><ol></ol>`;
-      li.querySelector("h2").textContent = g.name;
-      g.items.forEach(v => {
-        const b = document.createElement("button");
-        b.className = "item";
-        b.innerHTML = `<span class="id"></span><span class="t"></span><span class="d"></span>`;
-        b.querySelector(".id").textContent = v.id;
-        b.querySelector(".t").textContent = v.title;
-        b.querySelector(".d").textContent = durations[v.id] || "";
-        if (current) b.setAttribute("aria-current", current.id === v.id);
-        b.onclick = () => {
-          history.replaceState(null, "", "#" + v.id.toLowerCase()); select(v, true);
-          if (matchMedia("(max-width: 760px)").matches) frame.scrollIntoView({ behavior: "smooth", block: "start" });
-        };
-        buttons[v.id] = b;
-        const row = document.createElement("li"); row.appendChild(b);
-        li.querySelector("ol").appendChild(row);
-      });
-      menu.appendChild(li);
+  let expanded = false;
+  function makeGroup(g, gi, animateIn) {
+    const li = document.createElement("li");
+    li.className = "group" + (animateIn ? " reveal" : "");
+    li.style.setProperty("--i", gi + 2);
+    li.innerHTML = `<h2></h2><ol></ol>`;
+    li.querySelector("h2").textContent = g.name;
+    g.items.forEach(v => {
+      const b = document.createElement("button");
+      b.className = "item";
+      b.innerHTML = `<span class="id"></span><span class="t"></span><span class="d"></span>`;
+      b.querySelector(".id").textContent = v.id;
+      b.querySelector(".t").textContent = v.title;
+      b.querySelector(".d").textContent = durations[v.id] || "";
+      if (current) b.setAttribute("aria-current", current.id === v.id);
+      b.onclick = () => {
+        history.replaceState(null, "", "#" + v.id.toLowerCase()); select(v, true);
+        if (matchMedia("(max-width: 760px)").matches) frame.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      buttons[v.id] = b;
+      const row = document.createElement("li"); row.appendChild(b);
+      li.querySelector("ol").appendChild(row);
     });
+    return li;
+  }
+
+  function render(mode, animateIn) {
+    menu.querySelectorAll(":scope > .group, :scope > .more").forEach(n => n.remove());
+    buttons = {};
+    const groups = groupsFor(mode);
+    const shown = mode === "date" ? groups : groups.filter(g => g.lead);
+    const folded = mode === "date" ? [] : groups.filter(g => !g.lead);
+    shown.forEach((g, gi) => menu.appendChild(makeGroup(g, gi, animateIn)));
+    if (folded.length) {
+      const more = document.createElement("li");
+      more.className = "more" + (expanded ? " open" : "") + (animateIn ? " reveal" : "");
+      more.style.setProperty("--i", shown.length + 2);
+      more.innerHTML = `<button class="dots" aria-expanded="${expanded}" aria-controls="fold" aria-label="Show more videos"><svg viewBox="0 0 16 4" fill="currentColor"><circle cx="2" cy="2" r="1.6"/><circle cx="8" cy="2" r="1.6"/><circle cx="14" cy="2" r="1.6"/></svg></button><div class="fold" id="fold"><ul></ul></div>`;
+      const ul = more.querySelector("ul");
+      let k = 0;
+      folded.forEach(g => {
+        const li = makeGroup(g, 0, false);
+        li.querySelectorAll("h2, ol > li").forEach(n => { n.dataset.k = ""; n.style.setProperty("--k", k++); });
+        ul.appendChild(li);
+      });
+      ul.inert = !expanded;
+      more.querySelector(".dots").onclick = () => setExpanded(!expanded);
+      more.querySelector(".fold").addEventListener("transitionend", e => { if (e.propertyName === "grid-template-rows" && current) placeLamp(current); });
+      menu.appendChild(more);
+    }
+    if (current) placeLamp(current);
+  }
+
+  function setExpanded(open) {
+    expanded = open;
+    const more = menu.querySelector(".more");
+    if (!more) return;
+    more.classList.toggle("open", open);
+    const b = more.querySelector(".dots");
+    b.setAttribute("aria-expanded", open);
+    b.setAttribute("aria-label", open ? "Show fewer videos" : "Show more videos");
+    more.querySelector(".fold > ul").inert = !open;
     if (current) placeLamp(current);
   }
 
@@ -281,6 +341,10 @@
   view.querySelectorAll("button").forEach(b => b.onclick = () => b.dataset.mode !== mode && setMode(b.dataset.mode, true));
 
   function placeLamp(v) {
+    const more = menu.querySelector(".more");
+    if (more) more.classList.toggle("holds-current", !!(buttons[v.id] && buttons[v.id].closest(".fold")));
+    const hidden = !buttons[v.id] || (!expanded && buttons[v.id].closest(".fold"));
+    if (hidden) { lamp.classList.remove("on"); return; }
     const t = buttons[v.id].querySelector(".t");
     const lh = parseFloat(getComputedStyle(t).lineHeight) || t.offsetHeight;
     const y = t.getBoundingClientRect().top - menu.getBoundingClientRect().top + lh / 2;
@@ -289,6 +353,7 @@
   }
 
   function select(v, play) {
+    if (!expanded && buttons[v.id] && buttons[v.id].closest(".fold")) setExpanded(true);
     for (const k in buttons) buttons[k].setAttribute("aria-current", k === v.id);
     placeLamp(v);
     $("capId").textContent = v.id;
