@@ -31,6 +31,9 @@
     --sheet: #ffffff;
     --ink: #1a1a1a;
     --mute: #9a9a9a;
+    --head: #4a4a4a;
+    --item: #9c9c9c;
+    --faint: #b8b8b8;
     --rule: #e6e6e6;
     --blue: #2f6bff;
     --ease: cubic-bezier(.2, .8, .2, 1);
@@ -73,18 +76,21 @@
   .menu.switching { opacity: 0; transform: translateY(4px); }
   .menu.switching .lamp { opacity: 0; }
   .group + .group { margin-top: 36px; }
-  .group h2 { font-size: 12px; font-weight: 400; color: var(--mute); margin-bottom: 10px; }
+  .group h2 { font-size: 13px; font-weight: 500; color: var(--head); letter-spacing: -0.005em; margin-bottom: 8px; }
   .group ol { list-style: none; }
 
   .item {
     display: grid; grid-template-columns: 40px 1fr auto; align-items: baseline; gap: 0 10px;
     width: 100%; text-align: left; padding: 5px 0;
-    color: var(--mute); transition: color .25s var(--ease);
+    color: var(--item); transition: color .25s var(--ease);
   }
+  .item .id, .item .d { color: var(--faint); transition: color .25s var(--ease); }
   .item .id { font-size: 12px; font-weight: 400; }
   .item .t { transition: transform .35s var(--ease); }
   .item .d { font-size: 12px; }
-  .item:hover, .item[aria-current="true"] { color: var(--ink); }
+  .item:hover { color: var(--head); }
+  .item[aria-current="true"] { color: var(--ink); }
+  .item[aria-current="true"] .id, .item[aria-current="true"] .d { color: var(--mute); }
   .item:hover .t { transform: translateX(3px); }
   .item[aria-current="true"] .t { transform: none; }
 
@@ -197,13 +203,13 @@
 <script>
   // To add a video: put the .mp4 in /videos and a .jpg poster in /posters
   // (named YYYY-MM-DD_ID_description), then add an entry below.
-  const CATEGORIES = ["Scenarios", "Co-work in progress", "AI visualisation"];
+  const CATEGORIES = ["Scenarios", "Co-work in progress", "AI visualisation experimentations"];
   const LEAD = "Scenarios";
   const VIDEOS = [
     { id: "SC01", category: "Scenarios",           title: "Resting, high energy",   date: "2026-11-14", file: "2026-11-14_SC01_scenario-resting-high-energy" },
     { id: "CW01", category: "Co-work in progress", title: "Co-working session 01",  date: "2026-11-14", file: "2026-11-14_CW01_co-working-session-01" },
     { id: "CW02", category: "Co-work in progress", title: "Co-working session 02",  date: "2026-11-14", file: "2026-11-14_CW02_co-working-session-02" },
-    { id: "AV01", category: "AI visualisation",    title: "Low alertness",          date: "2026-11-10", file: "2026-11-10_AV01_low-alertness" },
+    { id: "AV01", category: "AI visualisation experimentations",    title: "Low alertness",          date: "2026-11-10", file: "2026-11-10_AV01_low-alertness" },
   ];
 
   const $ = id => document.getElementById(id);
