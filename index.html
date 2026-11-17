@@ -8,7 +8,6 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Reactive agent video documentation">
 <meta property="og:description" content="Scenarios, work in progress and visualisations from a reactive agent prototype.">
-<meta property="og:image" content="https://agent-widget-scenarios.vercel.app/posters/2026-11-14_SC01_scenario-resting-high-energy.jpg">
 <meta property="og:url" content="https://agent-widget-scenarios.vercel.app/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -36,6 +35,7 @@
     --faint: #b8b8b8;
     --rule: #e6e6e6;
     --blue: #2f6bff;
+    --err: #c8372d;
     --ease: cubic-bezier(.2, .8, .2, 1);
     --nav-w: clamp(264px, 24vw, 340px);
   }
@@ -137,7 +137,7 @@
 
   /* ---------- Player ---------- */
   main {
-    display: grid; grid-template-rows: minmax(0, 1fr) auto;
+    display: grid; grid-template-rows: minmax(0, 1fr) auto auto;
     padding: 28px 40px 24px 0; gap: 14px; min-width: 0; min-height: 0;
   }
   .frame {
@@ -176,6 +176,84 @@
   .controls button:hover { background: rgba(26, 26, 26, .06); }
   .controls svg { width: 16px; height: 16px; }
 
+
+  /* ---------- Admin ---------- */
+  .site .admin-line { margin-top: 6px; font-size: 12px; color: var(--mute); }
+  .site .admin-line a { color: var(--head); text-decoration: none; box-shadow: inset 0 -1px 0 var(--rule); }
+  .site .admin-line a:hover { box-shadow: inset 0 -1px 0 var(--head); }
+  .group h2 .count {
+    display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px;
+    border-radius: 999px; background: var(--blue); color: #fff; font-size: 11px; font-weight: 600; vertical-align: 1px;
+  }
+  .group.inbox { margin-bottom: 36px; }
+  .group.inbox .item .id { color: var(--blue); }
+  .trash { margin-top: 28px; }
+  .trash > button { font-size: 12px; color: var(--mute); display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; transition: color .2s; }
+  .trash > button:hover { color: var(--head); }
+  .trash > button svg { width: 8px; height: 8px; transition: transform .35s var(--ease); }
+  .trash.open > button svg { transform: rotate(90deg); }
+  .trash .fold > ul { padding-top: 6px; }
+  .trash.open .fold { grid-template-rows: 1fr; transition: grid-template-rows .5s cubic-bezier(.22, 1, .36, 1); }
+  .trash .item { color: var(--faint); }
+  .trash .item[aria-current="true"] { color: var(--head); }
+
+  .edit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 32px; }
+  .edit[hidden] { display: none; }
+  .field {
+    height: 32px; border: 0; border-radius: 8px; background: var(--sheet); box-shadow: 0 0 0 1px var(--rule);
+    font: inherit; font-size: 13px; color: var(--ink); padding: 0 10px; transition: box-shadow .2s;
+  }
+  .field:focus { outline: none; box-shadow: 0 0 0 1px var(--blue), 0 0 0 4px rgb(47 107 255 / .14); }
+  input.field { flex: 1 1 220px; min-width: 0; max-width: 360px; }
+  select.field { padding-right: 28px; appearance: none; -webkit-appearance: none; cursor: pointer;
+    background: var(--sheet) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a9a9a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center / 10px 6px; }
+  .btn {
+    height: 32px; padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 500; white-space: nowrap;
+    background: var(--sheet); box-shadow: 0 0 0 1px var(--rule); transition: background .2s, opacity .2s, box-shadow .2s;
+  }
+  .btn:hover { box-shadow: 0 0 0 1px #cfcfcf; }
+  .btn.primary { background: var(--ink); color: #fff; box-shadow: none; }
+  .btn.primary:hover { opacity: .86; }
+  .btn.quiet { background: none; box-shadow: none; color: var(--head); }
+  .btn.quiet:hover { background: rgba(26, 26, 26, .06); }
+  .btn.warn { background: none; box-shadow: none; color: var(--err); }
+  .btn.warn:hover { background: rgb(200 55 45 / .08); }
+  .btn.danger { background: var(--err); color: #fff; box-shadow: none; }
+  .btn.danger:hover { opacity: .9; }
+  .btn[disabled] { opacity: .45; pointer-events: none; }
+  .edit .note { font-size: 12px; color: var(--mute); }
+  .edit .note.err { color: var(--err); }
+  .edit .spacer { flex: 1; }
+
+  .empty { color: var(--mute); text-align: center; padding: 24px; max-width: 40ch; }
+  .empty strong { display: block; color: var(--head); font-weight: 500; margin-bottom: 4px; }
+
+  dialog {
+    margin: auto; border: 0; border-radius: 14px; padding: 24px; width: min(380px, calc(100% - 32px));
+    background: var(--sheet); color: var(--ink);
+    box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 2px 6px rgb(0 0 0 / .08), 0 24px 48px rgb(0 0 0 / .16);
+  }
+  dialog[open] { animation: pop .28s cubic-bezier(.22, 1, .36, 1); }
+  dialog::backdrop { background: rgb(26 26 26 / .28); animation: fade .2s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+  @keyframes fade { from { opacity: 0; } }
+  dialog h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 6px; text-wrap: balance; }
+  dialog p { color: #6b6b6b; font-size: 13px; text-wrap: pretty; }
+  dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+  .toast {
+    position: fixed; left: 50%; top: 20px; z-index: 10; display: flex; align-items: center; gap: 14px;
+    padding: 10px 10px 10px 16px; border-radius: 12px; background: var(--ink); color: #fff; font-size: 13px;
+    box-shadow: 0 2px 6px rgb(0 0 0 / .14), 0 16px 32px rgb(0 0 0 / .18);
+    transform: translate(-50%, -12px); opacity: 0; pointer-events: none;
+    transition: transform .4s cubic-bezier(.22, 1, .36, 1), opacity .25s ease;
+    max-width: calc(100% - 32px);
+  }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+  .toast button { color: #a9c0ff; font-weight: 600; padding: 4px 8px; border-radius: 6px; }
+  .toast button:hover { background: rgb(255 255 255 / .1); }
+  .toast button[hidden] { display: none; }
+
   /* ---------- One load sequence ---------- */
   .reveal { opacity: 0; transform: translateY(6px); animation: rise .7s var(--ease) forwards; animation-delay: calc(var(--i, 0) * 55ms + 80ms); }
   @keyframes rise { to { opacity: 1; transform: none; } }
@@ -184,7 +262,7 @@
     body { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; overflow: auto; }
     nav { padding: 28px 22px 8px 40px; }
     .site { margin-bottom: 32px; }
-    main { padding: 16px 16px 32px; grid-template-rows: auto auto; }
+    main { padding: 16px 16px 32px; grid-template-rows: auto auto auto; }
     .frame { aspect-ratio: 4 / 3; }
     .bar { grid-template-columns: 1fr; }
     nav .legal { display: none; }
@@ -201,6 +279,7 @@
   <header class="site reveal">
     <h1>Reactive agent</h1>
     <p>Video documentation</p>
+    <p class="admin-line" id="adminLine" hidden>Signed in as admin. <a href="/admin/logout">Sign out</a></p>
   </header>
   <div class="view reveal" id="view" role="group" aria-label="Sort videos" style="--i:1" data-mode="category">
     <span class="pill" aria-hidden="true"></span>
@@ -216,6 +295,7 @@
 
 <main>
   <div class="frame reveal" id="frame" style="--i:2">
+    <div class="empty" id="empty" hidden></div>
     <video id="player" playsinline preload="metadata" controlslist="nodownload noremoteplayback" disablepictureinpicture></video>
     <span class="bigplay" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z" fill="currentColor"/></svg></span>
   </div>
@@ -232,204 +312,23 @@
       <button id="full" aria-label="Full screen"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.75 5.5V1.75H5.5M10.5 1.75h3.75V5.5M14.25 10.5v3.75H10.5M5.5 14.25H1.75V10.5"/></svg></button>
     </div>
   </div>
+  <div class="edit" id="edit" hidden></div>
 </main>
+
+<dialog id="confirm" aria-labelledby="confirmTitle">
+  <h3 id="confirmTitle"></h3>
+  <p id="confirmText"></p>
+  <div class="actions">
+    <button class="btn quiet" value="cancel" id="confirmCancel">Cancel</button>
+    <button class="btn danger" value="ok" id="confirmOk"></button>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText"></span><button id="toastUndo" hidden>Undo</button></div>
 <footer class="legal end">
     <p><strong>Confidential.</strong> Unpublished work in progress from Sander Randoja’s master’s degree project in Interaction Design at Umeå Institute of Design, Umeå University. Please don’t share, download, record or reproduce it without written permission.</p>
     <p>© 2026 Sander Randoja. Protected under the Swedish Copyright Act (1960:729).</p>
 </footer>
 
-<script>
-  // To add a video: put the .mp4 in /videos and a .jpg poster in /posters
-  // (named YYYY-MM-DD_ID_description), then add an entry below.
-  const CATEGORIES = ["Scenarios", "Co-work in progress", "AI visualisation experimentations"];
-  const LEAD = "Scenarios";
-  const VIDEOS = [
-    { id: "SC01", category: "Scenarios",           title: "Resting, high energy",   date: "2026-11-14", file: "2026-11-14_SC01_scenario-resting-high-energy" },
-    { id: "CW01", category: "Co-work in progress", title: "Co-working session 01",  date: "2026-11-14", file: "2026-11-14_CW01_co-working-session-01" },
-    { id: "CW02", category: "Co-work in progress", title: "Co-working session 02",  date: "2026-11-14", file: "2026-11-14_CW02_co-working-session-02" },
-    { id: "AV01", category: "AI visualisation experimentations",    title: "Low alertness",          date: "2026-11-10", file: "2026-11-10_AV01_low-alertness" },
-  ];
-
-  const $ = id => document.getElementById(id);
-  const menu = $("menu"), lamp = $("lamp"), player = $("player"), frame = $("frame"), view = $("view");
-  const flat = VIDEOS, durations = {};
-  let buttons = {}, current = null;
-  const fmt = s => isFinite(s) ? Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0") : "0:00";
-  const longDate = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-
-  function groupsFor(mode) {
-    if (mode === "date") {
-      const days = [...new Set(VIDEOS.map(v => v.date))].sort().reverse();
-      return days.map(d => ({ name: longDate(d), lead: false, items: VIDEOS.filter(v => v.date === d) }));
-    }
-    return CATEGORIES.map(c => ({ name: c, lead: c === LEAD, items: VIDEOS.filter(v => v.category === c) }))
-                     .filter(g => g.items.length);
-  }
-
-  let expanded = false;
-  function makeGroup(g, gi, animateIn) {
-    const li = document.createElement("li");
-    li.className = "group" + (animateIn ? " reveal" : "");
-    li.style.setProperty("--i", gi + 2);
-    li.innerHTML = `<h2></h2><ol></ol>`;
-    li.querySelector("h2").textContent = g.name;
-    g.items.forEach(v => {
-      const b = document.createElement("button");
-      b.className = "item";
-      b.innerHTML = `<span class="id"></span><span class="t"></span><span class="d"></span>`;
-      b.querySelector(".id").textContent = v.id;
-      b.querySelector(".t").textContent = v.title;
-      b.querySelector(".d").textContent = durations[v.id] || "";
-      if (current) b.setAttribute("aria-current", current.id === v.id);
-      b.onclick = () => {
-        history.replaceState(null, "", "#" + v.id.toLowerCase()); select(v, true);
-        if (matchMedia("(max-width: 760px)").matches) frame.scrollIntoView({ behavior: "smooth", block: "start" });
-      };
-      buttons[v.id] = b;
-      const row = document.createElement("li"); row.appendChild(b);
-      li.querySelector("ol").appendChild(row);
-    });
-    return li;
-  }
-
-  function render(mode, animateIn) {
-    menu.querySelectorAll(":scope > .group, :scope > .more").forEach(n => n.remove());
-    buttons = {};
-    const groups = groupsFor(mode);
-    const shown = mode === "date" ? groups : groups.filter(g => g.lead);
-    const folded = mode === "date" ? [] : groups.filter(g => !g.lead);
-    shown.forEach((g, gi) => menu.appendChild(makeGroup(g, gi, animateIn)));
-    if (folded.length) {
-      const more = document.createElement("li");
-      more.className = "more" + (expanded ? " open" : "") + (animateIn ? " reveal" : "");
-      more.style.setProperty("--i", shown.length + 2);
-      more.innerHTML = `<button class="dots" aria-expanded="${expanded}" aria-controls="fold" aria-label="Show more videos"><svg viewBox="0 0 16 4" fill="currentColor"><circle cx="2" cy="2" r="1.6"/><circle cx="8" cy="2" r="1.6"/><circle cx="14" cy="2" r="1.6"/></svg></button><div class="fold" id="fold"><ul></ul></div>`;
-      const ul = more.querySelector("ul");
-      let k = 0;
-      folded.forEach(g => {
-        const li = makeGroup(g, 0, false);
-        li.querySelectorAll("h2, ol > li").forEach(n => { n.dataset.k = ""; n.style.setProperty("--k", k++); });
-        ul.appendChild(li);
-      });
-      ul.inert = !expanded;
-      more.querySelector(".dots").onclick = () => setExpanded(!expanded);
-      more.querySelector(".fold").addEventListener("transitionend", e => { if (e.propertyName === "grid-template-rows" && current) placeLamp(current); });
-      menu.appendChild(more);
-    }
-    if (current) placeLamp(current);
-  }
-
-  function setExpanded(open) {
-    expanded = open;
-    const more = menu.querySelector(".more");
-    if (!more) return;
-    more.classList.toggle("open", open);
-    const b = more.querySelector(".dots");
-    b.setAttribute("aria-expanded", open);
-    b.setAttribute("aria-label", open ? "Show fewer videos" : "Show more videos");
-    more.querySelector(".fold > ul").inert = !open;
-    if (current) placeLamp(current);
-  }
-
-  // Durations, read quietly from each file's metadata.
-  VIDEOS.forEach(v => {
-    const probe = document.createElement("video");
-    probe.preload = "metadata"; probe.src = `videos/${v.file}.mp4`;
-    probe.onloadedmetadata = () => {
-      durations[v.id] = fmt(probe.duration);
-      const d = buttons[v.id] && buttons[v.id].querySelector(".d");
-      if (d) d.textContent = durations[v.id];
-      probe.removeAttribute("src"); probe.load();
-    };
-  });
-
-  let mode = "category";
-  try { if (localStorage.getItem("view") === "date") mode = "date"; } catch (e) {}
-  function setMode(m, animate) {
-    mode = m;
-    view.dataset.mode = m;
-    view.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
-    try { localStorage.setItem("view", m); } catch (e) {}
-    if (!animate) return render(m, true);
-    menu.classList.add("switching");
-    setTimeout(() => { render(m, false); requestAnimationFrame(() => menu.classList.remove("switching")); }, 180);
-  }
-  view.querySelectorAll("button").forEach(b => b.onclick = () => b.dataset.mode !== mode && setMode(b.dataset.mode, true));
-
-  function placeLamp(v) {
-    const more = menu.querySelector(".more");
-    if (more) more.classList.toggle("holds-current", !!(buttons[v.id] && buttons[v.id].closest(".fold")));
-    const hidden = !buttons[v.id] || (!expanded && buttons[v.id].closest(".fold"));
-    if (hidden) { lamp.classList.remove("on"); return; }
-    const t = buttons[v.id].querySelector(".t");
-    const lh = parseFloat(getComputedStyle(t).lineHeight) || t.offsetHeight;
-    const y = t.getBoundingClientRect().top - menu.getBoundingClientRect().top + lh / 2;
-    lamp.style.setProperty("--y", y + "px");
-    lamp.classList.add("on");
-  }
-
-  function select(v, play) {
-    if (!expanded && buttons[v.id] && buttons[v.id].closest(".fold")) setExpanded(true);
-    for (const k in buttons) buttons[k].setAttribute("aria-current", k === v.id);
-    placeLamp(v);
-    $("capId").textContent = v.id;
-    $("capTitle").textContent = v.title;
-    $("capMeta").textContent = `${v.category}, ${longDate(v.date)}`;
-    document.title = `${v.id} ${v.title} | Reactive agent`;
-    if (current === v) { if (play) { player.currentTime = 0; player.play().catch(() => {}); } return; }
-    current = v;
-    const swap = () => {
-      player.poster = `posters/${v.file}.jpg`;
-      player.src = `videos/${v.file}.mp4`;
-      player.addEventListener("loadeddata", () => frame.classList.remove("swap"), { once: true });
-      if (play) player.play().catch(() => {});
-      else frame.classList.remove("swap");
-    };
-    if (player.src) { frame.classList.add("swap"); setTimeout(swap, 220); } else swap();
-  }
-
-  // Controls
-  const toggle = () => player.paused ? player.play().catch(() => {}) : player.pause();
-  frame.onclick = toggle;
-  frame.addEventListener("contextmenu", e => e.preventDefault());
-  $("toggle").onclick = toggle;
-  $("full").onclick = () => (frame.requestFullscreen || frame.webkitRequestFullscreen || (() => player.webkitEnterFullscreen && player.webkitEnterFullscreen())).call(frame);
-  const PLAY = '<path d="M3 1.5v13l11-6.5z" fill="currentColor"/>';
-  const PAUSE = '<path d="M3.5 2h3v12h-3zM9.5 2h3v12h-3z" fill="currentColor"/>';
-  const sync = () => {
-    const playing = !player.paused;
-    frame.classList.toggle("playing", playing);
-    $("toggleIcon").innerHTML = playing ? PAUSE : PLAY;
-    $("toggle").setAttribute("aria-label", playing ? "Pause" : "Play");
-  };
-  ["play", "pause", "ended"].forEach(e => player.addEventListener(e, sync));
-  player.addEventListener("timeupdate", () => {
-    const p = player.duration ? player.currentTime / player.duration * 100 : 0;
-    $("progress").style.width = p + "%";
-    $("scrub").setAttribute("aria-valuenow", Math.round(p));
-    $("time").textContent = `${fmt(player.currentTime)} / ${fmt(player.duration)}`;
-  });
-  player.addEventListener("loadedmetadata", () => $("time").textContent = `0:00 / ${fmt(player.duration)}`);
-
-  const scrub = $("scrub");
-  const seek = e => { const r = scrub.getBoundingClientRect(); if (player.duration) player.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * player.duration; };
-  scrub.addEventListener("pointerdown", e => { scrub.setPointerCapture(e.pointerId); seek(e); scrub.onpointermove = seek; });
-  scrub.addEventListener("pointerup", () => scrub.onpointermove = null);
-  scrub.addEventListener("keydown", e => {
-    if (e.key === "ArrowRight") player.currentTime += 5;
-    if (e.key === "ArrowLeft") player.currentTime -= 5;
-  });
-  document.addEventListener("keydown", e => {
-    if (e.code === "Space" && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); toggle(); }
-  });
-
-  const fromHash = () => flat.find(v => v.id.toLowerCase() === location.hash.slice(1).toLowerCase());
-  window.addEventListener("hashchange", () => { const v = fromHash(); if (v) select(v, true); });
-  window.addEventListener("resize", () => current && placeLamp(current));
-  document.fonts.ready.then(() => current && placeLamp(current));
-
-  setMode(mode, false);
-  select(fromHash() || flat[0], false);
-</script>
+<script src="app.js"></script>
 </body>
 </html>

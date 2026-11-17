@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@vercel/blob": "^2.9.0",
     "@vercel/functions": "^3.11.3"
+  },
+  "scripts": {
+    "build": "node scripts/seed.mjs"
   }
 }

@@ -1,30 +1,12 @@
-// Password gate for the whole site: page, posters and every video file.
-// The password lives only in the SITE_PASSWORD environment variable on Vercel.
-// If it is missing, nobody gets in (the gate fails closed).
+// Password gate for the whole site: pages, API and every video.
+// Viewers sign in with SITE_PASSWORD; the admin (edit, delete, restore) with
+// ADMIN_PASSWORD. The Mac upload helper uses UPLOAD_KEY on /api/ingest only.
+// All three live only in Vercel environment variables, and a missing value
+// means nobody gets in with that role (the gate fails closed).
 import { next } from "@vercel/functions";
+import { VIEWER_COOKIE, ADMIN_COOKIE, viewerToken, adminToken, isViewer, isAdmin, safeEqual, cookie } from "./lib/auth.js";
 
-const COOKIE = "site_auth";
-const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 const PUBLIC_PREFIXES = ["/fonts/"]; // the password screen needs its typeface
-
-async function sha256(text) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-function tokenFor(password) {
-  // Changing SITE_PASSWORD (or SITE_SECRET) signs everyone out.
-  return sha256(`${password}\u0000${process.env.SITE_SECRET || "agent-widget-scenarios"}`);
-}
-
-function readCookie(request, name) {
-  const header = request.headers.get("cookie") || "";
-  for (const part of header.split(";")) {
-    const [k, ...v] = part.trim().split("=");
-    if (k === name) return decodeURIComponent(v.join("="));
-  }
-  return null;
-}
 
 function safeNext(value) {
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "/";
@@ -34,7 +16,11 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function loginPage({ nextPath = "/", error = false, status = 401 } = {}) {
+function loginPage({ nextPath = "/", error = false, status = 401, admin = false } = {}) {
+  const action = admin ? "/admin/login" : "/login";
+  const sub = admin ? "Admin sign-in" : "Video documentation";
+  const cta = admin ? "Sign in" : "View videos";
+  const label = admin ? "Admin password" : "Password";
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -72,13 +58,13 @@ function loginPage({ nextPath = "/", error = false, status = 401 } = {}) {
 </style>
 </head>
 <body>
-<form method="post" action="/login">
+<form method="post" action="${action}">
   <h1>Reactive agent</h1>
-  <p class="sub">Video documentation</p>
-  <label for="pw">Password</label>
+  <p class="sub">${sub}</p>
+  <label for="pw">${label}</label>
   <div class="row">
     <input id="pw" name="password" type="password" autocomplete="current-password" required autofocus${error ? ' aria-invalid="true" aria-describedby="err"' : ""}>
-    <button type="submit">View videos</button>
+    <button type="submit">${cta}</button>
   </div>
   ${error ? '<p class="error" id="err" role="alert">That password didn’t work. Check it and try again.</p>' : ""}
   <input type="hidden" name="next" value="${escapeHtml(nextPath)}">
@@ -101,34 +87,46 @@ function loginPage({ nextPath = "/", error = false, status = 401 } = {}) {
   });
 }
 
+const redirect = (location, extra = {}) =>
+  new Response(null, { status: 303, headers: { location, "cache-control": "no-store", ...extra } });
+
+async function signIn(request, { expected, tokenFn, cookieName, admin }) {
+  const form = await request.formData();
+  const given = String(form.get("password") || "");
+  const nextPath = safeNext(String(form.get("next") || "/"));
+  if (expected && given && safeEqual(given, expected)) {
+    return redirect(nextPath, { "set-cookie": cookie(cookieName, await tokenFn(expected)) });
+  }
+  return loginPage({ nextPath, error: true, admin });
+}
+
 export default async function middleware(request) {
   const url = new URL(request.url);
-  const password = process.env.SITE_PASSWORD;
+  const { pathname } = url;
 
-  if (PUBLIC_PREFIXES.some(p => url.pathname.startsWith(p))) return next();
+  if (PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) return next();
+  // The Mac helper checks its own upload key inside the function.
+  if (pathname === "/api/ingest") return next();
 
-  if (url.pathname === "/login" && request.method === "POST") {
-    const form = await request.formData();
-    const given = String(form.get("password") || "");
-    const nextPath = safeNext(String(form.get("next") || "/"));
-    if (password && given && (await tokenFor(given)) === (await tokenFor(password))) {
-      return new Response(null, {
-        status: 303,
-        headers: {
-          location: nextPath,
-          "set-cookie": `${COOKIE}=${await tokenFor(password)}; Path=/; Max-Age=${MAX_AGE}; HttpOnly; Secure; SameSite=Lax`,
-          "cache-control": "no-store",
-        },
-      });
-    }
-    return loginPage({ nextPath, error: true });
+  if (pathname === "/login" && request.method === "POST")
+    return signIn(request, { expected: process.env.SITE_PASSWORD, tokenFn: viewerToken, cookieName: VIEWER_COOKIE });
+
+  if (pathname === "/admin/login" && request.method === "POST")
+    return signIn(request, { expected: process.env.ADMIN_PASSWORD, tokenFn: adminToken, cookieName: ADMIN_COOKIE, admin: true });
+
+  if (pathname === "/admin/logout") return redirect("/", { "set-cookie": cookie(ADMIN_COOKIE, "", 0) });
+
+  if (pathname === "/admin" || pathname === "/admin/") {
+    if (await isAdmin(request)) return redirect("/");
+    return loginPage({ nextPath: "/", admin: true });
   }
 
-  const cookie = readCookie(request, COOKIE);
-  if (password && cookie && cookie === (await tokenFor(password))) {
-    if (url.pathname === "/login") return Response.redirect(new URL("/", url), 303);
+  if (await isViewer(request)) {
+    if (pathname === "/login") return redirect("/");
     return next({ headers: { "x-robots-tag": "noindex, nofollow", "cache-control": "private, no-store" } });
   }
 
-  return loginPage({ nextPath: safeNext(url.pathname + url.search) });
+  if (pathname.startsWith("/api/"))
+    return new Response(JSON.stringify({ error: "Sign in first." }), { status: 401, headers: { "content-type": "application/json" } });
+  return loginPage({ nextPath: safeNext(pathname + url.search) });
 }
