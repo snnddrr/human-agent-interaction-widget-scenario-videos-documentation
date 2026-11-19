@@ -7,6 +7,10 @@
     "@vercel/functions": "^3.11.3"
   },
   "scripts": {
+    "test": "node --test",
     "build": "node scripts/seed.mjs"
+  },
+  "devDependencies": {
+    "undici": "^6.29.1"
   }
 }
