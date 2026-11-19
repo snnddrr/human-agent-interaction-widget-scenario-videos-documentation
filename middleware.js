@@ -50,6 +50,9 @@ function loginPage({ nextPath = "/", error = false, status = 401, admin = false 
            font: inherit; font-weight: 500; cursor: pointer; transition: opacity .2s; }
   button:hover { opacity: .86; }
   button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+  .access { margin-top: 16px; font-size: 12px; }
+  .access a { color: #4a4a4a; text-underline-offset: 3px; }
+  .access a:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
   .legal { margin-top: 40px; font-size: 12px; line-height: 1.5; color: var(--mute); }
   .legal strong { font-weight: 500; color: #4a4a4a; }
   .error { color: var(--err); font-size: 13px; margin-top: 10px; }
@@ -68,6 +71,7 @@ function loginPage({ nextPath = "/", error = false, status = 401, admin = false 
   </div>
   ${error ? '<p class="error" id="err" role="alert">That password didn’t work. Check it and try again.</p>' : ""}
   <input type="hidden" name="next" value="${escapeHtml(nextPath)}">
+  <p class="access"><a href="${admin ? "/" : "/admin"}">${admin ? "Back to videos" : "Admin sign-in"}</a></p>
   <p class="legal"><strong>Confidential.</strong> Unpublished work in progress by Sander Randoja, Umeå Institute of Design, Umeå University. \u00a9 2026 Sander Randoja, protected under the Swedish Copyright Act (1960:729).</p>
 </form>
 <script>

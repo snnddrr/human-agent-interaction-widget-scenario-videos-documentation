@@ -38,6 +38,7 @@ function applyLibrary(lib) {
   LIB = lib;
   lib.videos.forEach(v => { if (v.duration) durations[v.id] = fmt(v.duration); });
   $("adminLine").hidden = !lib.admin;
+  $("adminSignIn").hidden = lib.admin;
   if (current) current = lib.videos.find(v => v.id === current.id) || null;
 }
 
