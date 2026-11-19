@@ -260,17 +260,48 @@ scrub.addEventListener("keydown", e => {
 });
 document.addEventListener("keydown", e => {
   const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLButtonElement;
-  if (e.code === "Space" && !typing && !$("confirm").open) { e.preventDefault(); toggle(); }
+  if (e.code === "Space" && !typing && !$("confirm").open && !$("ask").open) { e.preventDefault(); toggle(); }
 });
 
 // ---------- Admin: edit row ----------
 
+const NEW_CATEGORY = "__new__";
 function categorySelect(v) {
   const s = el("select", "field");
   s.setAttribute("aria-label", "Category");
   if (!v.category) { const o = el("option", null, "Choose a category"); o.value = ""; o.disabled = true; o.selected = true; s.append(o); }
   LIB.categories.forEach(c => { const o = el("option", null, c.name); o.value = c.name; o.selected = c.name === v.category; s.append(o); });
+  const add = el("option", null, "New category\u2026"); add.value = NEW_CATEGORY; s.append(add);
+  s.dataset.prev = s.value;
   return s;
+}
+
+// Lets "New category…" in a select create one, then selects it.
+async function handleNewCategory(select) {
+  if (select.value !== NEW_CATEGORY) { select.dataset.prev = select.value; return true; }
+  const name = await askBox({ title: "New category", text: "Give it a short name. You can move any video into it.", ok: "Add category" });
+  if (!name) { select.value = select.dataset.prev || ""; return false; }
+  try {
+    const lib = await adminAction({ action: "addCategory", name });
+    LIB.categories = lib.categories;
+    const o = el("option", null, lib.category); o.value = lib.category;
+    select.insertBefore(o, select.querySelector(`option[value="${NEW_CATEGORY}"]`));
+    select.value = lib.category; select.dataset.prev = lib.category;
+    return true;
+  } catch (e) { toast(e.message); select.value = select.dataset.prev || ""; return false; }
+}
+
+function askBox({ title, text, ok }) {
+  const d = $("ask"), input = $("askInput");
+  $("askTitle").textContent = title; $("askText").textContent = text; $("askOk").textContent = ok;
+  input.value = "";
+  return new Promise(resolve => {
+    const done = val => { d.close(); resolve(val); };
+    $("askForm").onsubmit = e => { e.preventDefault(); const v = input.value.trim(); if (v) done(v); else input.focus(); };
+    $("askCancel").onclick = () => done(null);
+    d.oncancel = e => { e.preventDefault(); done(null); };
+    d.showModal(); input.focus();
+  });
 }
 
 function renderEdit(v) {
@@ -310,8 +341,10 @@ function renderEdit(v) {
 
   if (isDraft(v)) {
     const publish = el("button", "btn primary", "Publish");
-    const check = () => { publish.disabled = !cat.value || !title.value.trim(); };
-    title.oninput = check; cat.onchange = check; check();
+    const check = () => { publish.disabled = !cat.value || cat.value === NEW_CATEGORY || !title.value.trim(); };
+    title.oninput = check;
+    cat.onchange = async () => { await handleNewCategory(cat); check(); };
+    check();
     publish.onclick = () => run(publish, { action: "publish", id: v.id, title: title.value, category: cat.value }, null, say, { announcePublish: true });
     title.onkeydown = e => { if (e.key === "Enter" && !publish.disabled) publish.click(); };
     say("Waiting for review. Only you can see it.");
@@ -324,7 +357,7 @@ function renderEdit(v) {
     };
     title.onblur = saveTitle;
     title.onkeydown = e => { if (e.key === "Enter") title.blur(); if (e.key === "Escape") { title.value = v.title; title.blur(); } };
-    cat.onchange = () => run(null, { action: "update", id: v.id, category: cat.value }, null, say, { saved: true });
+    cat.onchange = async () => { if (await handleNewCategory(cat)) run(null, { action: "update", id: v.id, category: cat.value }, null, say, { saved: true }); };
     const back = el("button", "btn quiet", "Move to New");
     back.title = "Hide it from viewers again";
     back.onclick = () => run(back, { action: "unpublish", id: v.id }, `Moved “${v.title}” back to New`, say);
@@ -406,7 +439,7 @@ function firstVideo() {
 
 // Admins see new uploads arrive without reloading.
 async function refresh() {
-  if (document.hidden || $("confirm").open || document.activeElement?.classList.contains("field")) return;
+  if (document.hidden || $("confirm").open || $("ask").open || document.activeElement?.classList.contains("field")) return;
   try {
     const lib = await loadLibrary();
     if (!lib) return;

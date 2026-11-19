@@ -1,6 +1,6 @@
 // POST /api/admin: review, edit, delete and restore. Admin sign-in required.
 import { isAdmin } from "../lib/auth.js";
-import { update, view, nextCode } from "../lib/library.js";
+import { update, view, nextCode, codeFor } from "../lib/library.js";
 import { remove } from "../lib/store.js";
 
 const json = (body, status = 200) =>
@@ -15,6 +15,13 @@ export async function POST(request) {
 
   let toRemove = [];
   const { data, result } = await update(lib => {
+    if (b.action === "addCategory") {
+      const name = String(b.name || "").trim().replace(/\s+/g, " ").slice(0, 60);
+      if (!name) return fail("Give the category a name.");
+      if (lib.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) return { ok: true, category: name };
+      lib.categories.push({ name, code: codeFor(lib, name) });
+      return { ok: true, category: name };
+    }
     const v = lib.videos.find(x => x.id === b.id);
     if (!v) return fail("That video no longer exists.", 404);
     const catOk = name => lib.categories.some(c => c.name === name);
@@ -73,5 +80,5 @@ export async function POST(request) {
 
   if (result.error) return json({ error: result.error }, result.status);
   if (toRemove.length) await remove(toRemove);
-  return json(view(data, { admin: true }));
+  return json({ ...view(data, { admin: true }), ...(result.category ? { category: result.category } : {}) });
 }

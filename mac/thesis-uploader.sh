@@ -15,7 +15,9 @@ APP_DIR="${THESIS_UPLOADER_HOME:-$HOME/Library/Application Support/ThesisUploade
 WORK="$APP_DIR/work"
 LOCK="$APP_DIR/lock"
 FAILS="$APP_DIR/failures"
+ANSWERS="$APP_DIR/answers"
 UPLOADED="$WATCH_DIR/Uploaded"
+SKIPPED="$WATCH_DIR/Not uploaded"
 NOT_UPLOADED="$WATCH_DIR/Couldn't upload"
 MAX_TRIES=5
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
@@ -29,7 +31,7 @@ notify() {
 }
 
 # ---------- one run at a time ----------
-mkdir -p "$WORK" "$FAILS"
+mkdir -p "$WORK" "$FAILS" "$ANSWERS"
 if ! mkdir "$LOCK" 2>/dev/null; then
   # A lock older than 3 hours is left over from a crash.
   if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +180 2>/dev/null)" ]; then rmdir "$LOCK" 2>/dev/null; mkdir "$LOCK" || exit 0
@@ -89,6 +91,72 @@ failed() { # file reason
   fi
 }
 
+# ---------- asking for a title and category ----------
+file_key() { printf '%s' "$(basename "$1")" | cksum | cut -d' ' -f1; }
+as_quote() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+
+# "Screen Recording 2026-11-19 at 11.40.30.mov" -> "Recording 19 Nov, 11:40"
+default_title() {
+  local base="${1%.*}" months="Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec" y m d hh mm
+  if [[ "$base" =~ ([0-9]{4})-([0-9]{2})-([0-9]{2})[^0-9]+([0-9]{1,2})[.:]([0-9]{2}) ]]; then
+    m=${BASH_REMATCH[2]#0}; d=${BASH_REMATCH[3]#0}; hh=${BASH_REMATCH[4]}; mm=${BASH_REMATCH[5]}
+    [ ${#hh} -eq 1 ] && hh="0$hh"
+    printf 'Recording %s %s, %s:%s' "$d" "$(echo $months | cut -d' ' -f"$m")" "$hh" "$mm"
+  else printf '%s' "$base"; fi
+}
+
+fetch_categories() { # -> one name per line
+  local i=0 name
+  [ "$(api '{"action":"ping"}' "$WORK/ping.json" 2>/dev/null)" = 200 ] || return 1
+  while name=$(json_get "$WORK/ping.json" "categories.$i") && [ -n "$name" ]; do printf '%s\n' "$name"; i=$((i + 1)); done
+}
+
+# Sets CHOICE (review|publish|skip), TITLE and CATEGORY for a file,
+# asking once and remembering the answer for retries.
+ask_details() {
+  local f="$1" key saved def out cats list last
+  key=$(file_key "$f"); saved="$ANSWERS/$key"
+  if [ -f "$saved" ]; then . "$saved"; return 0; fi
+  def=$(default_title "$(basename "$f")")
+  CHOICE=review; TITLE="$def"; CATEGORY=""
+
+  if [ -n "${THESIS_UPLOADER_TEST_CHOICE:-}" ]; then
+    CHOICE="$THESIS_UPLOADER_TEST_CHOICE"; TITLE="${THESIS_UPLOADER_TEST_TITLE:-$def}"; CATEGORY="${THESIS_UPLOADER_TEST_CATEGORY:-}"
+  elif [ "$(uname)" = Darwin ]; then
+    out=$(osascript 2>/dev/null <<APPLESCRIPT
+set r to display dialog "Name this recording" default answer "$(as_quote "$def")" buttons {"Don't upload", "Upload for review", "Upload and publish"} default button "Upload for review" with title "Thesis archive" giving up after 900
+if gave up of r then return "review" & linefeed & "$(as_quote "$def")"
+set b to button returned of r
+set c to "review"
+if b is "Don't upload" then set c to "skip"
+if b is "Upload and publish" then set c to "publish"
+return c & linefeed & (text returned of r)
+APPLESCRIPT
+    ) || out=""
+    if [ -n "$out" ]; then
+      CHOICE=$(printf '%s\n' "$out" | head -1)
+      TITLE=$(printf '%s\n' "$out" | tail -n +2 | tr '\n' ' ' | sed 's/ *$//')
+      [ -n "$TITLE" ] || TITLE="$def"
+    fi
+    if [ "$CHOICE" != skip ] && cats=$(fetch_categories) && [ -n "$cats" ]; then
+      last=$(cat "$APP_DIR/last_category" 2>/dev/null || true)
+      list=""
+      while IFS= read -r c; do list="$list\"$(as_quote "$c")\", "; done <<< "$cats"
+      printf '%s\n' "$cats" | grep -qxF -- "$last" || last="Decide later"
+      CATEGORY=$(osascript 2>/dev/null <<APPLESCRIPT
+set r to choose from list {${list}"Decide later"} with title "Thesis archive" with prompt "Category for \"$(as_quote "$TITLE")\"" default items {"$(as_quote "$last")"} OK button name "Upload" cancel button name "Decide later"
+if r is false then return ""
+return item 1 of r
+APPLESCRIPT
+      ) || CATEGORY=""
+      [ "$CATEGORY" = "Decide later" ] && CATEGORY=""
+      [ -n "$CATEGORY" ] && printf '%s' "$CATEGORY" > "$APP_DIR/last_category"
+    fi
+  fi
+  case "$CHOICE" in review|publish|skip) ;; *) CHOICE=review ;; esac
+  { printf 'CHOICE=%q\n' "$CHOICE"; printf 'TITLE=%q\n' "$TITLE"; printf 'CATEGORY=%q\n' "$CATEGORY"; } > "$saved"
+}
+
 # ---------- compress ----------
 compress() { # in out poster -> sets DURATION
   local in="$1" out="$2" poster="$3"
@@ -118,6 +186,13 @@ process() {
   local f="$1" name base out poster size created_at body status id vurl purl ctype has_poster
   name=$(basename "$f"); base="${name%.*}"
   out="$WORK/$base.mp4"; poster="$WORK/$base.jpg"
+  ask_details "$f"
+  if [ "$CHOICE" = skip ]; then
+    mkdir -p "$SKIPPED"; mv "$f" "$(unique_path "$SKIPPED" "$name")"; rm -f "$ANSWERS/$(file_key "$f")"
+    log "Not uploading $name (your choice). Moved to \"Not uploaded\"."
+    return
+  fi
+  local publish=false; [ "$CHOICE" = publish ] && [ -n "$CATEGORY" ] && publish=true
   log "Compressing $name ($(( $(wc -c < "$f") / 1048576 )) MB)"
   compress "$f" "$out" "$poster"; case $? in
     0) ;;
@@ -130,7 +205,7 @@ process() {
   ctype="video/mp4"
   log "Compressed to $(( size / 1048576 )) MB, uploading"
 
-  body="{\"action\":\"start\",\"filename\":\"$(json_escape "$name")\",\"size\":$size,\"recordedAt\":\"$created_at\",\"duration\":${DURATION:-0},\"poster\":$has_poster,\"contentType\":\"$ctype\"}"
+  body="{\"action\":\"start\",\"title\":\"$(json_escape "$TITLE")\",\"category\":\"$(json_escape "$CATEGORY")\",\"publish\":$publish,\"filename\":\"$(json_escape "$name")\",\"size\":$size,\"recordedAt\":\"$created_at\",\"duration\":${DURATION:-0},\"poster\":$has_poster,\"contentType\":\"$ctype\"}"
   status=$(api "$body" "$WORK/start.json") || { failed "$f" "No connection to the site."; return; }
   [ "$status" = 200 ] || { failed "$f" "The site said: $(cat "$WORK/start.json" 2>/dev/null) ($status)"; return; }
   id=$(json_get "$WORK/start.json" id); vurl=$(json_get "$WORK/start.json" videoUrl); purl=$(json_get "$WORK/start.json" posterUrl)
@@ -148,9 +223,16 @@ process() {
   mkdir -p "$UPLOADED"
   mv "$f" "$(unique_path "$UPLOADED" "$name")"
   mv "$out" "$(unique_path "$UPLOADED" "$base (web).mp4")"
-  rm -f "$poster" "$FAILS/$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
-  log "Uploaded $name as \"$(json_get "$WORK/done.json" title)\""
-  notify "\"$(json_get "$WORK/done.json" title)\" is waiting for review in New."
+  rm -f "$poster" "$FAILS/$(file_key "$name")" "$ANSWERS/$(file_key "$name")"
+  local done_title done_code
+  done_title=$(json_get "$WORK/done.json" title); done_code=$(json_get "$WORK/done.json" code)
+  if [ "$(json_get "$WORK/done.json" status)" = published ]; then
+    log "Uploaded and published $name as $done_code \"$done_title\""
+    notify "Published \"$done_title\" as $done_code."
+  else
+    log "Uploaded $name as \"$done_title\" (waiting in New)"
+    notify "\"$done_title\" is waiting for review in New."
+  fi
 }
 
 # ---------- main ----------

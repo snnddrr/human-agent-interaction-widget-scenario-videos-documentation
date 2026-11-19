@@ -239,6 +239,7 @@
   @keyframes fade { from { opacity: 0; } }
   dialog h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 6px; text-wrap: balance; }
   dialog p { color: #6b6b6b; font-size: 13px; text-wrap: pretty; }
+  .ask-input { width: 100%; max-width: none; margin-top: 14px; }
   dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
   .toast {
@@ -322,6 +323,17 @@
     <button class="btn quiet" value="cancel" id="confirmCancel">Cancel</button>
     <button class="btn danger" value="ok" id="confirmOk"></button>
   </div>
+</dialog>
+<dialog id="ask" aria-labelledby="askTitle">
+  <form method="dialog" id="askForm">
+    <h3 id="askTitle">New category</h3>
+    <p id="askText">Videos can be moved into it right away.</p>
+    <input class="field ask-input" id="askInput" maxlength="60" autocomplete="off" aria-labelledby="askTitle">
+    <div class="actions">
+      <button class="btn quiet" value="cancel" type="button" id="askCancel">Cancel</button>
+      <button class="btn primary" value="ok" id="askOk">Add category</button>
+    </div>
+  </form>
 </dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText"></span><button id="toastUndo" hidden>Undo</button></div>
 <footer class="legal end">

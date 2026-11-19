@@ -4,7 +4,7 @@
 //   { action: "complete", id }
 //     -> { id, status: "draft" }       (now waiting for review in "New")
 import { hasUploadKey } from "../lib/auth.js";
-import { update, newId } from "../lib/library.js";
+import { update, newId, load, nextCode } from "../lib/library.js";
 import { signedPutUrl, exists } from "../lib/store.js";
 
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
@@ -28,7 +28,10 @@ export async function POST(request) {
   let body;
   try { body = await request.json(); } catch { return json({ error: "Send JSON." }, 400); }
 
-  if (body.action === "ping") return json({ ok: true });
+  if (body.action === "ping") {
+    const { data } = await load();
+    return json({ ok: true, categories: data.categories.map(c => c.name) });
+  }
 
   if (body.action === "start") {
     const size = Number(body.size) || 0;
@@ -40,9 +43,12 @@ export async function POST(request) {
     const id = newId();
     const video = `videos/${date}_${id}.${isMov ? "mov" : "mp4"}`;
     const poster = body.poster ? `posters/${date}_${id}.jpg` : null;
+    const givenTitle = String(body.title || "").trim().slice(0, 120);
     await update(lib => {
+      const category = lib.categories.some(c => c.name === body.category) ? body.category : null;
       lib.videos.push({
-        id, code: null, title: titleFrom(body.filename, body.recordedAt), category: null, date,
+        id, code: null, title: givenTitle || titleFrom(body.filename, body.recordedAt), category,
+        publishOnArrival: Boolean(body.publish && category), date,
         status: "uploading", deletedAt: null, video, poster,
         duration: Number(body.duration) || null, size,
         sourceName: String(body.filename || "").slice(0, 200), createdAt: new Date().toISOString(),
@@ -63,9 +69,16 @@ export async function POST(request) {
       const file = await exists(v.video);
       if (!file) return { error: "The video file hasn't arrived in storage.", status: 409 };
       if (v.poster && !(await exists(v.poster))) v.poster = null;
-      if (v.status === "uploading") v.status = "draft";
+      if (v.status === "uploading") {
+        if (v.publishOnArrival && v.category) {
+          v.status = "published";
+          v.code = nextCode(lib, v.category);
+          v.publishedAt = new Date().toISOString();
+        } else v.status = "draft";
+      }
+      delete v.publishOnArrival;
       v.size = file.size;
-      return { id: v.id, status: v.status, title: v.title };
+      return { id: v.id, status: v.status, title: v.title, code: v.code || null, category: v.category };
     });
     return result.error ? json({ error: result.error }, result.status) : json(result);
   }
